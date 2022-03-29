@@ -2,10 +2,6 @@
 
 A template for SLU projects at [skit.ai](https://skit.ai/).
 
-- Built using [dialogy](https://skit-ai.github.io/dialogy/)
-- This template is automatically to create an slu microservice.
-- Don't clone this project for building microservices, use the `dialogy create <project_name>` to create projects.
-
 ## Features
 
 1. XLMRWorkflow uses "xlm-roberta-base" for both classification and ner tasks.
@@ -29,11 +25,11 @@ A template for SLU projects at [skit.ai](https://skit.ai/).
 | **Makefile**                              | Helps maintain hygiene before deploying code.                                |
 | **pyproject.toml**                        | Track dependencies here. Also, this means you would be using poetry.         |
 | **README.md**                             | This must ring a bell.                                                       |
-| **uwsgi.ini**                             | Modify as per use.                                                           |
+
 
 ## Getting started
 
-Make sure you have `git`, `python==^3.8`, [`poetry`](https://python-poetry.org/docs/#installation) installed. Preferably within a virtual environment. You would also need to have `cmake` installed if you are on Mac OS. Run the command `brew install cmake` to install cmake.
+Make sure you have `git`, `python==^3.8`, [`poetry`](https://python-poetry.org/docs/#installation) installed. Preferably within a virtual environment.
 
 ### 1. Boilerplate
 
@@ -48,7 +44,6 @@ The questions here help:
 
 - Populate your [`pyproject.toml`](https://python-poetry.org/docs/pyproject/) since we use [`poetry`](https://python-poetry.org/docs/) for managing dependencies.
 - Create a repository and python package with the scaffolding you need.
-- Remove `poetry.lock` it may affect package installation. It will be removed in a previous version.
 
 ### 2. Install
 
@@ -244,7 +239,7 @@ To run your models to see how they perform on live inputs, you have two options:
 
 2. `task serve`
 
-    This is a uwsgi server that provides the same interface as your production applications.
+    This is a uvicorn server that provides the same interface as your production applications.
 
 ### 10. Releases
 
@@ -280,44 +275,6 @@ This command takes care of the following acts:
 
 Finally, we are ready to build a Docker image for our service for production runs. We use Makefiles to ensure a bit of hygiene checks.
 Run `make <image-name>` to check if the image builds in your local environment. If you have CI-CD enabled, that should do it for you.
-
-## 12. Enabling CI/CD
-CI/CD automates the entire Docker Image build and deployment steps to staging & production. Pipeline is triggered whenever a new tag is released (recommendeded way to create and push tags is `slu release --version VERSION`). 
-[.gitlab-ci.yml](.gitlab-ci.yml) pipeline includes the following stages. 
-
-  1. `publish_image`                           # build docker image and push to registry
-  2. `update_chart_and_deploy_to_staging`      # deploy the tagged dockerimage to staging cluster
-  3. `update_chart_and_deploy_to_production`   # deploy the tagged dockerimage to production cluster
-
-`update_chart_and_deploy_to_production` stage requires manual approval for running.
-
-For a clean CI/CD setup, following conditions should be met.
-  1. Project name should be same for Gitlab Repository and Amazon ECR folder. 
-  2. [k8s-configs/ai/clients](https://gitlab.com/vernacularai/kubernetes/k8s-configs/-/tree/master/ai/clients) project folder should follow the following file structure:
-      - values-staging.yaml  #values for staging
-      - values-production.yaml #values for prod
-      - application-production.yaml # deploys app to prod
-      - application-staging.yaml  #deploys to staging
-      
-  3. dvc shouldn't be a dev-dependencies. 
-
-        replace this:
-        ```
-        [tool.poetry.dev-dependencies.dvc]
-        extras = [ "s3",]
-        version = "^2.6.4"
-        ```
-        with:
-        ```  
-          [tool.poetry.dependencies.dvc]
-          extras = [ "s3",]
-          version = "^2.6.4"
-        ```
-        in pyproject.toml.
-
-  4. poetry.lock should be a git tracked file. Ensure it is not present inside `.gitignore`.
-  5. Remove `.dvc` if present inside `.dockerignore` and replace it with `.dvc/cache/`.
-
 
 ## Config
 
@@ -388,18 +345,19 @@ These are the APIs which are being used.
 1. Health check - To check if the service is running.
 
     ```python
-    @app.route("/", methods=["GET"])
-    def health_check():
-        return jsonify(
+    @app.get("/")
+    async def health_check():
+        return JSONResponse(dict(
             status="ok",
             response={"message": "Server is up."},
-        )
+            ),
+        status_code=200)
     ```
 
 2. Predict - This is the main production API.
 
     ```python
-    @app.route("/predict/<lang>/slu/", methods=["POST"])
+    @app.post("/predict/{lang}/{model_name}/")
     ```
 
 ## Entities
@@ -451,3 +409,21 @@ The threshold here is the proportion of the entity with respect to transcripts.
 - If entities with same value and type are produced in the same transcript multiple times, they are counted only once. Assuming the speaker is repeating the entity.
 
 - If entities with same value and type are produced in across different transcripts then they are once per transcript.
+
+## Testing 
+
+```bash
+make test
+```
+
+The project automatically stores all unique inputs. However, it is hard to know the correct intent value 
+or entity value for a given input. So these test only check if there has been a change since the time of 
+recording. Feel free to drop cases that are irrelevant.
+
+## Misc
+
+Creating a new environment with pyenv and running poetry install can lead to [#56](https://github.com/skit-ai/dialogy-template-simple-transformers/issues/56).
+
+```bash
+pip install --upgrade pip
+```

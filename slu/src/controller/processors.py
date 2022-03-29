@@ -7,7 +7,6 @@ from dialogy.workflow import Workflow
 
 from slu import constants as const
 from slu.utils.config import load_gen_config, Config
-from slu.src.controller.custom_plugins import OOSFilterPlugin
 
 
 class SLUPipeline:
